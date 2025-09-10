@@ -35,7 +35,7 @@ When using Claude Code on a remote server via SSH, you can't directly paste loca
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/claude-screenshot-uploader.git
+git clone https://github.com/mdrzn/claude-screenshot-uploader.git
 cd claude-screenshot-uploader
 
 # Run the setup script
@@ -63,7 +63,7 @@ The setup script will:
 
 2. **Clone and configure:**
    ```bash
-   git clone https://github.com/yourusername/claude-screenshot-uploader.git
+   git clone https://github.com/mdrzn/claude-screenshot-uploader.git
    cd claude-screenshot-uploader
    
    # Create config from template
