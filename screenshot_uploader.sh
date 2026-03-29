@@ -47,31 +47,39 @@ echo "⏹️  Press Ctrl+C to stop"
 echo ""
 
 # Monitor Screenshots folder for new SCR-*.png files
-/opt/homebrew/bin/fswatch -0 --event Created --event Updated --event MovedTo "$LOCAL_SCREENSHOTS" 2>/dev/null | while read -d "" event; do
-    # Check if the new file matches SCR-*.png pattern
-    if [[ "$event" =~ SCR-[0-9]{8}-[a-z]{4}\.png$ ]]; then
-        filename=$(basename "$event")
+/opt/homebrew/bin/fswatch -0 --event Created --event Updated --event MovedTo --event Renamed "$LOCAL_SCREENSHOTS" 2>/dev/null | while read -d "" event; do
+    # Skip temporary dotfiles (macOS writes .Screenshot... then renames)
+    filename=$(basename "$event")
+    [[ "$filename" == .* ]] && continue
+
+    # Check if the new file is a screenshot (supports both naming formats)
+    # macOS default: "Screenshot YYYY-MM-DD at H.MM.SS AM.png"
+    # macOS Sequoia: "SCR-YYYYMMDD-xxxx.png"
+    if [[ "$filename" =~ ^(Screenshot[[:space:]].*\.png|SCR-[0-9]{8}-[a-z]{4}\.png)$ ]]; then
         echo "📸 New screenshot detected: $filename"
-        
-        # Wait a moment for file to be completely written
-        sleep 0.5
-        
-        echo "🚀 Uploading to server..."
-        
-        # Create status file to indicate upload in progress (for xbar)
-        echo "uploading:$filename" > /tmp/screenshot-uploader-status
-        
-        # Use rsync to upload with SSH options to prevent hanging
-        rsync_output=$(rsync -av -e "ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=no" "$event" "$SERVER_USER@$SERVER_HOST:$SERVER_PATH/" 2>&1)
-        rsync_exit=$?
-        
-        # Keep status file visible for at least 1 second so xbar can see it
+
+        # Wait for file to be completely written
         sleep 1
         
+        # Sanitize filename: replace Unicode narrow no-break space (U+202F) with regular space
+        clean_filename=$(echo "$filename" | sed "s/$(printf '\xe2\x80\xaf')/ /g")
+
+        echo "🚀 Uploading to server..."
+
+        # Create status file to indicate upload in progress (for xbar)
+        echo "uploading:$clean_filename" > /tmp/screenshot-uploader-status
+
+        # Upload with scp, renaming to sanitized filename
+        scp_output=$(scp -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=no "$event" "$SERVER_USER@$SERVER_HOST:$SERVER_PATH/$clean_filename" 2>&1)
+        scp_exit=$?
+
+        # Keep status file visible for at least 1 second so xbar can see it
+        sleep 1
+
         # Check if upload was successful
-        if [ $rsync_exit -eq 0 ] && echo "$rsync_output" | grep -q "$filename"; then
+        if [ $scp_exit -eq 0 ]; then
             # Copy server path to clipboard
-            server_file_path="$SERVER_PATH/$filename"
+            server_file_path="$SERVER_PATH/$clean_filename"
             echo -n "$server_file_path" | pbcopy
             
             echo "✅ Upload successful!"
@@ -81,7 +89,7 @@ echo ""
             rm -f /tmp/screenshot-uploader-status
             
             # Show success notification
-            osascript -e "display notification \"Path copied to clipboard: $filename\" with title \"Screenshot Uploaded\" subtitle \"Ready to paste in Claude Code\""
+            osascript -e "display notification \"Path copied to clipboard: $clean_filename\" with title \"Screenshot Uploaded\" subtitle \"Ready to paste in Claude Code\""
             
             # Optional: remove local file after successful upload
             if [ "$AUTO_DELETE" = "true" ]; then
@@ -90,8 +98,8 @@ echo ""
             fi
             
         else
-            echo "❌ Upload failed for $filename"
-            echo "Error: $rsync_output"
+            echo "❌ Upload failed for $clean_filename"
+            echo "Error: $scp_output"
             
             # Clear status file on failure too
             rm -f /tmp/screenshot-uploader-status

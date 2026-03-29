@@ -123,8 +123,9 @@ echo "🚀 Installing LaunchAgent..."
 PLIST_FILE="$HOME/Library/LaunchAgents/com.claudecode.screenshot-uploader.plist"
 cp com.claudecode.screenshot-uploader.plist "$PLIST_FILE"
 
-# Fix the path in plist
+# Fix paths in plist (launchd does not expand ~ or $HOME)
 sed -i '' "s|~/claude-screenshot-uploader|$SCRIPT_DIR|g" "$PLIST_FILE"
+sed -i '' "s|<string>~/</string>|<string>$HOME</string>|g" "$PLIST_FILE"
 
 # Load the service
 launchctl unload "$PLIST_FILE" 2>/dev/null || true
