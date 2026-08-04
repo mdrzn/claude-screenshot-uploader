@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.claudecode.screenshot-uploader</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/federico/claude-screenshot-uploader/screenshot_uploader_polling.sh</string>
+    </array>
+
+    <key>StartInterval</key>
+    <integer>2</integer>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/screenshot-uploader.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/screenshot-uploader-error.log</string>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/federico</string>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+
+    <key>Nice</key>
+    <integer>1</integer>
+</dict>
+</plist>
