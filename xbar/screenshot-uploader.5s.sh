@@ -1,221 +1,248 @@
 #!/bin/bash
 
-# Claude Screenshot Uploader xbar Plugin v3 - Manual Upload Mode
-# Shows servers and allows manual upload of latest screenshot
-# Copy to: ~/Library/Application Support/xbar/plugins/
+# Claude Screenshot Uploader — xbar plugin (manual upload mode)
+#
+# Menu bar control for uploading the newest screenshot to a configured server on
+# demand, plus switching between servers. The auto-upload daemon modes are
+# separate and optional; this plugin works with or without one running.
+#
+# Install to: ~/Library/Application Support/xbar/plugins/
+# The 5s in the filename is xbar's refresh interval.
 
-SCRIPT_DIR="$HOME/claude-screenshot-uploader"
-CONFIG_FILE="$HOME/.claude-screenshot-uploader/config.json"
-STATUS_FILE="/tmp/screenshot-uploader-status"
-SCREENSHOTS_DIR="$HOME/Screenshots"
+INSTALL_DIR="$HOME/claude-screenshot-uploader"
+HELP_URL="https://github.com/mdrzn/claude-screenshot-uploader"
 
-# Check if config exists
-if [ ! -f "$CONFIG_FILE" ]; then
+if [ ! -r "$INSTALL_DIR/helpers/common.sh" ]; then
     echo "📸 ⚠️"
     echo "---"
-    echo "⚠️ Not Configured"
+    echo "⚠️ Uploader not found at $INSTALL_DIR | color=red"
     echo "---"
-    echo "➕ Add First Server... | shell='$SCRIPT_DIR/helpers/add-server.sh' terminal=false refresh=true"
-    echo "---"
-    echo "📖 Help | href='https://github.com/mdrzn/claude-screenshot-uploader'"
+    echo "📖 Setup instructions | href='$HELP_URL'"
     exit 0
 fi
 
-# Get active server and list of all servers
-SERVERS_INFO=$(python3 << 'EOF'
-import json
-import sys
-import os
+# shellcheck source=../helpers/common.sh
+source "$INSTALL_DIR/helpers/common.sh"
 
-config_file = os.path.expanduser("~/.claude-screenshot-uploader/config.json")
+VERSION="$(csu_version)"
 
-try:
-    with open(config_file, 'r') as f:
-        config = json.load(f)
+if [ ! -f "$CSU_CONFIG_FILE" ]; then
+    echo "📸 ⚠️"
+    echo "---"
+    echo "⚠️ Not Configured | color=orange"
+    echo "---"
+    echo "➕ Add First Server... | shell='$INSTALL_DIR/helpers/add-server.sh' terminal=false refresh=true"
+    echo "---"
+    echo "📖 Help | href='$HELP_URL'"
+    echo "---"
+    echo "v$VERSION | size=10 color=gray"
+    exit 0
+fi
 
-    active = config.get('active', '')
-    servers = config.get('servers', {})
+# ── Read config (one python3 call) ────────────────────────────────────────────
 
-    # Print active server first
-    if active and active in servers:
-        print(f"ACTIVE:{active}:{servers[active].get('name', active)}:{servers[active]['host']}")
-    else:
-        print("ACTIVE:none:No Active Server:none")
+CONFIG_ROWS="$(csu_config_dump)"
 
-    # Print all servers
-    for key, server in servers.items():
-        print(f"SERVER:{key}:{server.get('name', key)}:{server['host']}")
+if [ -z "$CONFIG_ROWS" ] || printf '%s\n' "$CONFIG_ROWS" | grep -q '^ERROR'; then
+    ERROR_MESSAGE="$(printf '%s\n' "$CONFIG_ROWS" | awk -F'\t' '/^ERROR/ {print $2; exit}')"
+    echo "📸 ⚠️"
+    echo "---"
+    echo "⚠️ ${ERROR_MESSAGE:-Could not read configuration} | color=red"
+    echo "--$CSU_CONFIG_FILE | size=10 color=gray"
+    echo "---"
+    echo "➕ Add Server... | shell='$INSTALL_DIR/helpers/add-server.sh' terminal=false refresh=true"
+    echo "🔄 Refresh | refresh=true"
+    echo "---"
+    echo "v$VERSION | size=10 color=gray"
+    exit 0
+fi
 
-except Exception as e:
-    print(f"ERROR:config:Error reading config:{e}")
-    sys.exit(1)
-EOF
-)
+SCREENSHOTS_DIR="$(printf '%s\n' "$CONFIG_ROWS" | awk -F'\t' '/^DIR/ {print $2; exit}')"
+SERVER_ROWS="$(printf '%s\n' "$CONFIG_ROWS" | grep '^SERVER')"
+SERVER_COUNT="$(printf '%s\n' "$CONFIG_ROWS" | grep -c '^SERVER')"
 
-# Parse active server info
-ACTIVE_LINE=$(echo "$SERVERS_INFO" | grep "^ACTIVE:")
-IFS=':' read -r _ ACTIVE_KEY ACTIVE_NAME ACTIVE_HOST <<< "$ACTIVE_LINE"
+ACTIVE_ROW="$(printf '%s\n' "$CONFIG_ROWS" | grep '^ACTIVE' | head -n 1)"
+if [ -n "$ACTIVE_ROW" ]; then
+    IFS=$'\t' read -r _ ACTIVE_KEY ACTIVE_NAME ACTIVE_HOST ACTIVE_USER ACTIVE_PATH _ <<< "$ACTIVE_ROW"
+else
+    ACTIVE_KEY=""
+fi
 
-# Check if currently uploading
-if [ -f "$STATUS_FILE" ]; then
-    IFS=':' read -r _ UPLOADING_FILE UPLOADING_SERVER <<< $(cat "$STATUS_FILE")
+# ── Menu bar title ────────────────────────────────────────────────────────────
+
+csu_clear_stale_status
+
+if [ -f "$CSU_STATUS_FILE" ]; then
+    IFS=':' read -r _ UPLOADING_FILE UPLOADING_SERVER < "$CSU_STATUS_FILE"
     ICON="📸 🔵"
-    STATUS_TEXT="Uploading to $UPLOADING_SERVER..."
-# Default idle state
-else
-    if [ "$ACTIVE_KEY" != "none" ]; then
-        # Show abbreviated server name in menu bar
-        if [ ${#ACTIVE_HOST} -gt 15 ]; then
-            SHORT_HOST=$(echo "$ACTIVE_HOST" | cut -c1-12)...
-        else
-            SHORT_HOST="$ACTIVE_HOST"
-        fi
-        ICON="📸 → $SHORT_HOST"
-        STATUS_TEXT="Ready to upload"
+    STATUS_TEXT="Uploading ${UPLOADING_FILE:-screenshot} to ${UPLOADING_SERVER:-server}..."
+    STATUS_COLOR="blue"
+elif [ -n "$ACTIVE_KEY" ]; then
+    if [ ${#ACTIVE_HOST} -gt 15 ]; then
+        SHORT_HOST="$(printf '%.12s...' "$ACTIVE_HOST")"
     else
-        ICON="📸"
-        STATUS_TEXT="No server selected"
+        SHORT_HOST="$ACTIVE_HOST"
     fi
-fi
-
-# Find latest screenshot info
-LATEST_SCREENSHOT=$(find "$SCREENSHOTS_DIR" -maxdepth 1 -type f \( -name "SCR-*.png" -o -name "SCR-*.jpeg" -o -name "Screenshot *.png" -o -name "Screenshot *.jpg" -o -name "Screenshot *.jpeg" \) -print0 2>/dev/null | xargs -0 ls -t 2>/dev/null | head -n 1)
-
-if [ -n "$LATEST_SCREENSHOT" ]; then
-    LATEST_FILENAME=$(basename "$LATEST_SCREENSHOT")
-    # Get file modification time in a readable format
-    LATEST_TIME=$(stat -f "%Sm" -t "%b %d, %H:%M" "$LATEST_SCREENSHOT" 2>/dev/null)
+    ICON="📸 → $SHORT_HOST"
+    STATUS_TEXT="Ready to upload"
+    STATUS_COLOR="gray"
 else
-    LATEST_FILENAME="No screenshots found"
-    LATEST_TIME=""
+    ICON="📸"
+    STATUS_TEXT="No server selected"
+    STATUS_COLOR="orange"
 fi
 
-# Menu bar icon and title
 echo "$ICON"
 echo "---"
+echo "$STATUS_TEXT | size=11 color=$STATUS_COLOR"
 
-# Latest screenshot info
+# ── Update check ──────────────────────────────────────────────────────────────
+#
+# Only ever reads the cache. If it's stale, a detached refresh is fired whose
+# result shows up on a later menu refresh — the network is never on this path.
+
+UPDATE_AVAILABLE=""
+UPDATE_LATEST=""
+
+if [ -f "$CSU_UPDATE_CACHE" ]; then
+    while IFS='=' read -r FIELD VALUE; do
+        case "$FIELD" in
+            latest) UPDATE_LATEST="$VALUE" ;;
+            update) UPDATE_AVAILABLE="$VALUE" ;;
+        esac
+    done < "$CSU_UPDATE_CACHE"
+fi
+
+if [ ! -f "$CSU_UPDATE_CACHE" ] || [ "$(csu_file_age "$CSU_UPDATE_CACHE")" -gt 86400 ]; then
+    # Fully detached: stdout and stderr are closed so xbar doesn't wait on the
+    # inherited pipe, which would hang the menu until the check finished.
+    ( "$INSTALL_DIR/helpers/check-update.sh" >/dev/null 2>&1 & ) &
+fi
+
+if [ "$UPDATE_AVAILABLE" = "yes" ] && [ -n "$UPDATE_LATEST" ]; then
+    echo "---"
+    echo "⬆️ Update available: v$UPDATE_LATEST | color=orange"
+    echo "--⬇️ Update now | shell='$INSTALL_DIR/helpers/self-update.sh' terminal=true refresh=true"
+    echo "--📝 What changed | href='$HELP_URL/releases'"
+fi
+
+echo "---"
+
+# ── Newest screenshot ─────────────────────────────────────────────────────────
+
+LATEST_SCREENSHOT="$(csu_latest_screenshot "$SCREENSHOTS_DIR")"
+
 if [ -n "$LATEST_SCREENSHOT" ]; then
     echo "📸 Latest Screenshot:"
-    echo "--$LATEST_FILENAME | size=11"
-    if [ -n "$LATEST_TIME" ]; then
-        echo "--$LATEST_TIME | size=10 color=gray"
-    fi
+    echo "--$(basename "$LATEST_SCREENSHOT") | size=11"
+    LATEST_TIME="$(stat -f "%Sm" -t "%b %d, %H:%M" "$LATEST_SCREENSHOT" 2>/dev/null)"
+    [ -n "$LATEST_TIME" ] && echo "--$LATEST_TIME | size=10 color=gray"
+    echo "--👁️ Preview | shell='open' param1='$LATEST_SCREENSHOT' terminal=false"
 else
     echo "📸 No screenshots found | color=gray"
+    echo "--$SCREENSHOTS_DIR | size=10 color=gray"
 fi
 
 echo "---"
 
-# Upload actions
-if [ -n "$LATEST_SCREENSHOT" ]; then
-    if [ "$ACTIVE_KEY" != "none" ]; then
-        echo "📤 Upload to $ACTIVE_NAME | shell='$SCRIPT_DIR/helpers/upload-latest.sh' terminal=false refresh=true"
-    else
-        echo "📤 Upload Latest Screenshot | disabled=true"
-        echo "--⚠️ Select a server first | size=11 color=gray"
-    fi
+# ── Upload actions ────────────────────────────────────────────────────────────
 
-    # Upload to specific server submenu
-    SERVER_COUNT=$(echo "$SERVERS_INFO" | grep "^SERVER:" | wc -l | tr -d ' ')
-
-    if [ $SERVER_COUNT -gt 1 ]; then
-        echo "📤 Upload to..."
-
-        echo "$SERVERS_INFO" | grep "^SERVER:" | while IFS=':' read -r _ KEY NAME HOST; do
-            if [ "$KEY" = "$ACTIVE_KEY" ]; then
-                echo "--✓ $NAME | shell='$SCRIPT_DIR/helpers/upload-latest.sh' param1='$KEY' terminal=false refresh=true"
-            else
-                echo "--$NAME | shell='$SCRIPT_DIR/helpers/upload-latest.sh' param1='$KEY' terminal=false refresh=true"
-            fi
-            echo "--$HOST | size=10 color=gray alternate=true"
-        done
-    fi
-else
+if [ -z "$LATEST_SCREENSHOT" ]; then
     echo "📤 Upload Latest Screenshot | disabled=true"
     echo "--Take a screenshot first | size=11 color=gray"
+elif [ -z "$ACTIVE_KEY" ]; then
+    echo "📤 Upload Latest Screenshot | disabled=true"
+    echo "--⚠️ Select a server first | size=11 color=gray"
+else
+    echo "📤 Upload to $ACTIVE_NAME | shell='$INSTALL_DIR/helpers/upload-latest.sh' terminal=false refresh=true"
+fi
+
+if [ -n "$LATEST_SCREENSHOT" ] && [ "$SERVER_COUNT" -gt 1 ]; then
+    echo "📤 Upload to..."
+    printf '%s\n' "$SERVER_ROWS" | while IFS=$'\t' read -r _ KEY NAME HOST USER _ _; do
+        [ -n "$KEY" ] || continue
+        if [ "$KEY" = "$ACTIVE_KEY" ]; then
+            echo "--✓ $NAME | shell='$INSTALL_DIR/helpers/upload-latest.sh' param1='$KEY' terminal=false refresh=true"
+        else
+            echo "--$NAME | shell='$INSTALL_DIR/helpers/upload-latest.sh' param1='$KEY' terminal=false refresh=true"
+        fi
+        echo "--$USER@$HOST | size=10 color=gray alternate=true"
+    done
 fi
 
 echo "---"
 
-# Current active server
-if [ "$ACTIVE_KEY" != "none" ]; then
+# ── Active server ─────────────────────────────────────────────────────────────
+
+if [ -n "$ACTIVE_KEY" ]; then
     echo "🖥️ Active Server: $ACTIVE_NAME | color=green"
-    echo "--$ACTIVE_HOST | size=11 color=gray"
+    echo "--$ACTIVE_USER@$ACTIVE_HOST:$ACTIVE_PATH | size=11 color=gray"
 else
     echo "🖥️ Active Server: None selected | color=orange"
 fi
 
 echo "---"
 
-# Server selector
-SERVER_COUNT=$(echo "$SERVERS_INFO" | grep "^SERVER:" | wc -l | tr -d ' ')
+# ── Server selector ───────────────────────────────────────────────────────────
 
-if [ $SERVER_COUNT -gt 0 ]; then
+if [ "$SERVER_COUNT" -gt 0 ]; then
     echo "⚙️ Change Server:"
-
-    echo "$SERVERS_INFO" | grep "^SERVER:" | while IFS=':' read -r _ KEY NAME HOST; do
+    printf '%s\n' "$SERVER_ROWS" | while IFS=$'\t' read -r _ KEY NAME HOST USER _ _; do
+        [ -n "$KEY" ] || continue
         if [ "$KEY" = "$ACTIVE_KEY" ]; then
-            echo "--✓ $NAME | shell='$SCRIPT_DIR/helpers/switch-server.sh' param1='$KEY' terminal=false refresh=true"
+            echo "--✓ $NAME | shell='$INSTALL_DIR/helpers/switch-server.sh' param1='$KEY' terminal=false refresh=true"
         else
-            echo "--◯ $NAME | shell='$SCRIPT_DIR/helpers/switch-server.sh' param1='$KEY' terminal=false refresh=true"
+            echo "--◯ $NAME | shell='$INSTALL_DIR/helpers/switch-server.sh' param1='$KEY' terminal=false refresh=true"
         fi
-        echo "--$HOST | size=10 color=gray alternate=true"
+        echo "--$USER@$HOST | size=10 color=gray alternate=true"
     done
 else
-    echo "⚠️ No servers configured"
+    echo "⚠️ No servers configured | color=orange"
 fi
 
 echo "---"
 
-# Server management
 echo "⚙️ Server Management:"
-echo "--➕ Add New Server... | shell='$SCRIPT_DIR/helpers/add-server.sh' terminal=false refresh=true"
+echo "--➕ Add New Server... | shell='$INSTALL_DIR/helpers/add-server.sh' terminal=false refresh=true"
+if [ "$SERVER_COUNT" -gt 0 ]; then
+    echo "--✏️ Edit Server... | shell='$INSTALL_DIR/helpers/edit-server.sh' terminal=false refresh=true"
+    echo "--🗑️ Remove Server... | shell='$INSTALL_DIR/helpers/remove-server.sh' terminal=false refresh=true"
+fi
 
-if [ $SERVER_COUNT -gt 0 ]; then
-    echo "--✏️ Edit Server... | shell='$SCRIPT_DIR/helpers/edit-server.sh' terminal=false refresh=true"
-    echo "--🗑️ Remove Server... | shell='$SCRIPT_DIR/helpers/remove-server.sh' terminal=false refresh=true"
+# ── Recent activity ───────────────────────────────────────────────────────────
+
+if [ -s "$CSU_LOG_FILE" ]; then
+    # Only the tail is scanned — the log is append-only and grows without bound,
+    # and this runs on every refresh.
+    RECENT="$(tail -n 200 "$CSU_LOG_FILE" 2>/dev/null | grep -E '(✅|❌|📸)' | tail -n 5 | tail -r)"
+    if [ -n "$RECENT" ]; then
+        echo "---"
+        echo "📊 Recent Activity:"
+        printf '%s\n' "$RECENT" | while IFS= read -r LINE; do
+            # Drop the timestamp when there is one. Lines written before 2.0 have
+            # no stamp, and a blind prefix strip would eat their first two words.
+            if [[ "$LINE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}\ [0-9]{2}:[0-9]{2}:[0-9]{2}\ (.*)$ ]]; then
+                echo "--${BASH_REMATCH[1]} | size=11"
+            else
+                echo "--$LINE | size=11"
+            fi
+        done
+    fi
 fi
 
 echo "---"
 
-# Recent uploads from log (if exists)
-if [ -f /tmp/screenshot-uploader.log ]; then
-    echo "📊 Recent Activity:"
-    # Get last 5 upload events
-    tail -20 /tmp/screenshot-uploader.log 2>/dev/null | grep -E "(Upload successful|Uploading to|detected)" | tail -5 | while read line; do
-        if echo "$line" | grep -q "Upload successful"; then
-            SERVER=$(echo "$line" | grep -oE "to [^!]*" | sed 's/to //')
-            echo "--✅ → ${SERVER:-server} | size=11"
-        elif echo "$line" | grep -q "Uploading to"; then
-            SERVER=$(echo "$line" | sed 's/.*Uploading to //' | sed 's/\.\.\.//')
-            echo "--⏳ → $SERVER | size=11"
-        elif echo "$line" | grep -q "detected"; then
-            FILE=$(echo "$line" | grep -oE "SCR-[0-9]{8}-[a-z]{4}\.png" || echo "screenshot")
-            echo "--📸 $FILE | size=11"
-        fi
-    done | head -5
-    echo "---"
-fi
-
-# Quick actions
 echo "🛠️ Tools:"
 echo "--📂 Open Screenshots Folder | shell='open' param1='$SCREENSHOTS_DIR' terminal=false"
-
-if [ "$ACTIVE_KEY" != "none" ]; then
-    echo "--🔐 Test SSH Connection | shell='ssh' param1='-o' param2='ConnectTimeout=5' param3='$ACTIVE_HOST' param4='echo' param5='Connection successful!' terminal=true"
+if [ -n "$ACTIVE_KEY" ]; then
+    echo "--🔐 Test SSH Connection | shell='ssh' param1='-o' param2='ConnectTimeout=5' param3='$ACTIVE_USER@$ACTIVE_HOST' param4='echo' param5='Connection successful!' terminal=true"
 fi
-
-if [ -f /tmp/screenshot-uploader.log ]; then
-    echo "--📋 View Logs | shell='tail' param1='-50' param2='/tmp/screenshot-uploader.log' terminal=true"
+if [ -f "$CSU_LOG_FILE" ]; then
+    echo "--📋 View Logs | shell='tail' param1='-50' param2='$CSU_LOG_FILE' terminal=true"
 fi
 
 echo "---"
-
-# Links
-echo "📖 Documentation | href='https://github.com/mdrzn/claude-screenshot-uploader'"
+echo "📖 Documentation | href='$HELP_URL'"
 echo "🔄 Refresh | refresh=true"
-
-# Version info
 echo "---"
-echo "v3.1 - Manual Upload | size=10 color=gray"
+echo "v$VERSION · manual upload | size=10 color=gray"

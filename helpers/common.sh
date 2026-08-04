@@ -3,13 +3,33 @@
 # Shared definitions for the Claude Screenshot Uploader.
 # Source this file, don't execute it:  source "$(dirname "$0")/common.sh"
 
-CSU_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Locate the install directory from this file's own path, and confirm the guess
+# by looking for VERSION there. Without that check an empty BASH_SOURCE (which is
+# what happens if this file is sourced from a non-bash shell) silently resolves
+# to the parent of the current directory instead.
+_csu_locate_root() {
+    local candidate
+    if [ -n "${BASH_SOURCE[0]:-}" ]; then
+        candidate="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)"
+        if [ -n "$candidate" ] && [ -f "$candidate/VERSION" ]; then
+            printf '%s' "$candidate"
+            return 0
+        fi
+    fi
+    printf '%s' "$HOME/claude-screenshot-uploader"
+}
+
+CSU_ROOT="$(_csu_locate_root)"
 
 CSU_CONFIG_DIR="$HOME/.claude-screenshot-uploader"
 CSU_CONFIG_FILE="$CSU_CONFIG_DIR/config.json"
 CSU_STATUS_FILE="/tmp/screenshot-uploader-status"
 CSU_LOG_FILE="/tmp/screenshot-uploader.log"
 CSU_LABEL_PREFIX="com.claudecode.screenshot-uploader"
+
+# Kept next to the config rather than in /tmp so the once-a-day version check
+# survives a reboot instead of firing again on every login.
+CSU_UPDATE_CACHE="$CSU_CONFIG_DIR/update-check"
 
 # A status file older than this many seconds is assumed to be a leftover from an
 # upload that was killed mid-flight, and is ignored rather than shown forever.
@@ -117,6 +137,60 @@ csu_clear_stale_status() {
     if [ -f "$CSU_STATUS_FILE" ] && [ "$(csu_file_age "$CSU_STATUS_FILE")" -gt "$CSU_STATUS_MAX_AGE" ]; then
         rm -f "$CSU_STATUS_FILE"
     fi
+}
+
+csu_notify() {
+    # $1 title, $2 message, $3 subtitle (optional)
+    osascript -e "display notification \"$2\" with title \"$1\" subtitle \"${3:-}\"" 2>/dev/null
+}
+
+# Upload one file to one server. Every entry point — the xbar plugin's manual
+# upload and all the auto-upload daemon modes — goes through here, so the status
+# file, clipboard, logging and notification behave identically in each.
+#
+# Usage: csu_upload <file> <name> <host> <user> <remote_path> <auto_delete>
+# Returns 0 on success.
+csu_upload() {
+    local file="$1" name="$2" host="$3" user="$4" remote_path="$5" auto_delete="$6"
+    local filename output status
+
+    filename="$(basename "$file")"
+
+    if [ -z "$host" ] || [ -z "$user" ]; then
+        csu_log "❌ Server '$name' is missing a host or user"
+        csu_notify "Upload Failed" "Server '$name' is misconfigured" "Host or user is empty"
+        return 1
+    fi
+
+    csu_log "📸 Uploading $filename → $name"
+    echo "uploading:$filename:$name" > "$CSU_STATUS_FILE"
+
+    # accept-new trusts a host's key on first contact and pins it afterwards, so
+    # a key that later changes is reported instead of silently accepted.
+    output=$(rsync -a -e "ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new" \
+        "$file" "$user@$host:$remote_path/" 2>&1)
+    status=$?
+
+    # Hold the status file briefly so a menu refresh can catch the upload.
+    sleep 1
+    rm -f "$CSU_STATUS_FILE"
+
+    if [ $status -ne 0 ]; then
+        csu_log "❌ Failed $filename → $name: $output"
+        csu_notify "Upload Failed" "Could not upload to $name" "Check the SSH connection"
+        return 1
+    fi
+
+    printf '%s' "$remote_path/$filename" | pbcopy
+    csu_log "✅ Uploaded $filename → $name"
+    csu_notify "Screenshot Uploaded" "Path copied: $filename" "To: $name"
+
+    if [ "$auto_delete" = "true" ]; then
+        rm -f "$file"
+        csu_log "🗑️ Deleted local copy of $filename"
+    fi
+
+    return 0
 }
 
 # Labels of every loaded uploader agent. Each daemon mode installs under its own

@@ -1,32 +1,36 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+    Auto-upload daemon, fswatch mode.
+    setup.sh replaces the __PLACEHOLDER__ values; launchd does not expand ~ or
+    environment variables in any of these keys, so they must be absolute paths.
+-->
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.claudecode.screenshot-uploader</string>
-    
+    <string>com.claudecode.screenshot-uploader.fswatch</string>
+
     <key>ProgramArguments</key>
     <array>
-        <string>/bin/bash</string>
-        <string>-c</string>
-        <string>export PATH=/opt/homebrew/bin:$PATH; ~/claude-screenshot-uploader/screenshot_uploader_v2.sh</string>
+        <string>__INSTALL_DIR__/uploader-fswatch.sh</string>
     </array>
-    
+
+    <!-- Resident process: start at login and restart it if it dies. -->
     <key>RunAtLoad</key>
     <true/>
-    
+
     <key>KeepAlive</key>
     <true/>
-    
+
     <key>StandardOutPath</key>
     <string>/tmp/screenshot-uploader.log</string>
-    
+
     <key>StandardErrorPath</key>
     <string>/tmp/screenshot-uploader-error.log</string>
-    
+
     <key>WorkingDirectory</key>
-    <string>~/</string>
-    
+    <string>__HOME__</string>
+
     <key>ProcessType</key>
     <string>Background</string>
 </dict>

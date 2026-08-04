@@ -1,18 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+    Auto-upload daemon, WatchPaths mode.
+    setup.sh replaces the __PLACEHOLDER__ values; launchd does not expand ~ or
+    environment variables in any of these keys, so they must be absolute paths.
+-->
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.claudecode.screenshot-uploader</string>
+    <string>com.claudecode.screenshot-uploader.watchpaths</string>
 
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/federico/claude-screenshot-uploader/screenshot_uploader_watchpaths.sh</string>
+        <string>__INSTALL_DIR__/uploader-watchpaths.sh</string>
     </array>
 
+    <!-- launchd triggers the job whenever this directory changes. -->
     <key>WatchPaths</key>
     <array>
-        <string>/Users/federico/Screenshots</string>
+        <string>__SCREENSHOTS_DIR__</string>
     </array>
 
     <key>StandardOutPath</key>
@@ -22,7 +28,7 @@
     <string>/tmp/screenshot-uploader-error.log</string>
 
     <key>WorkingDirectory</key>
-    <string>/Users/federico</string>
+    <string>__HOME__</string>
 
     <key>ProcessType</key>
     <string>Background</string>

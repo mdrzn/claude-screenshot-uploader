@@ -1,21 +1,25 @@
 #!/bin/bash
-# Claude Screenshot Uploader Configuration
-# Copy this file to ~/.claude-screenshot-uploader.conf and edit the values
+#
+# LEGACY single-server configuration format (1.x).
+#
+# Only uploader-fswatch-legacy.sh still reads this. Everything else uses
+# ~/.claude-screenshot-uploader/config.json, which supports multiple servers and
+# is managed from the menu bar.
+#
+# Already have a file in this format? Convert it:
+#     ./migrate-config.sh
+#
+# Setting up fresh? Run ./setup.sh instead — you don't need this file.
+#
+# To use it anyway, copy to ~/.claude-screenshot-uploader.conf and edit:
 
-# Server Configuration
-SERVER_HOST="your-server.com"           # Your server hostname or IP address
-SERVER_USER="your-username"             # SSH username for the server
-SERVER_PATH="/tmp/screenshots"          # Remote directory for screenshots
+SERVER_HOST="your-server.com"            # hostname or IP
+SERVER_USER="your-username"              # SSH username
+SERVER_PATH="/tmp/screenshots"           # remote directory to upload into
 
-# Local Configuration  
-LOCAL_SCREENSHOTS="$HOME/Screenshots"    # Local directory where screenshots are saved
-                                        # To change macOS screenshot location:
-                                        # defaults write com.apple.screencapture location ~/Screenshots
-                                        # killall SystemUIServer
+LOCAL_SCREENSHOTS="$HOME/Screenshots"    # folder to watch
 
-# Options
-AUTO_DELETE="false"                     # Set to "true" to delete local screenshots after upload
-                                        # Set to "false" to keep local copies
+AUTO_DELETE="false"                      # "true" deletes the local copy after upload
 
-# Note: Make sure you have SSH key authentication set up:
-# ssh-copy-id your-username@your-server.com
+# Key authentication is required — uploads never prompt for a password:
+#     ssh-copy-id your-username@your-server.com

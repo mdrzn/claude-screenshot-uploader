@@ -1,15 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+    Auto-upload daemon, polling mode.
+    setup.sh replaces the __PLACEHOLDER__ values; launchd does not expand ~ or
+    environment variables in any of these keys, so they must be absolute paths.
+-->
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.claudecode.screenshot-uploader</string>
+    <string>com.claudecode.screenshot-uploader.polling</string>
 
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/federico/claude-screenshot-uploader/screenshot_uploader_polling.sh</string>
+        <string>__INSTALL_DIR__/uploader-polling.sh</string>
     </array>
 
+    <!-- Seconds between checks: lower means less delay, more wakeups. -->
     <key>StartInterval</key>
     <integer>2</integer>
 
@@ -20,7 +26,7 @@
     <string>/tmp/screenshot-uploader-error.log</string>
 
     <key>WorkingDirectory</key>
-    <string>/Users/federico</string>
+    <string>__HOME__</string>
 
     <key>ProcessType</key>
     <string>Background</string>

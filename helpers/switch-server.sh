@@ -1,51 +1,50 @@
 #!/bin/bash
 
-# Switch active server
-CONFIG_FILE="$HOME/.claude-screenshot-uploader/config.json"
+# Switch the active server.
+# Usage: switch-server.sh <server_key>
+
+source "$(dirname "$0")/common.sh"
+
 SERVER_KEY="$1"
 
-# Debug logging
-echo "$(date): switch-server.sh called with args: [$*] argc=$#" >> /tmp/screenshot-uploader-debug.log
-
 if [ -z "$SERVER_KEY" ]; then
-    echo "$(date): ERROR - no server key provided" >> /tmp/screenshot-uploader-debug.log
-    echo "Usage: $0 <server_key>"
+    echo "Usage: $0 <server_key>" >&2
     exit 1
 fi
 
-echo "$(date): Switching to server key: '$SERVER_KEY'" >> /tmp/screenshot-uploader-debug.log
+SERVER_NAME=$(python3 - "$CSU_CONFIG_FILE" "$SERVER_KEY" <<'PY'
+import json, os, sys
 
-# Update active server using Python
-python3 << EOF
-import json
-import sys
+path, key = sys.argv[1], sys.argv[2]
 
-config_file = "$CONFIG_FILE"
-server_key = "$SERVER_KEY"
+with open(path) as handle:
+    config = json.load(handle)
 
-try:
-    with open(config_file, 'r') as f:
-        config = json.load(f)
-    
-    if server_key in config['servers']:
-        config['active'] = server_key
-        
-        with open(config_file, 'w') as f:
-            json.dump(config, f, indent=2)
-        
-        server_name = config['servers'][server_key].get('name', server_key)
-        print(f"✅ Switched to: {server_name}")
-        
-        # Show notification
-        import subprocess
-        subprocess.run(['osascript', '-e', f'display notification "Active server: {server_name}" with title "Server Switched"'])
-    else:
-        print(f"❌ Server '{server_key}' not found")
-        sys.exit(1)
-except Exception as e:
-    print(f"❌ Error: {e}")
+servers = config.get('servers') or {}
+if key not in servers:
+    sys.stderr.write("Server '%s' not found\n" % key)
     sys.exit(1)
-EOF
 
-# Restart the service to use new server
-launchctl stop com.claudecode.screenshot-uploader 2>/dev/null
+config['active'] = key
+
+# Write via a temporary file so an interrupted write can't truncate the config
+# and take every configured server with it.
+tmp = path + '.tmp'
+with open(tmp, 'w') as handle:
+    json.dump(config, handle, indent=2)
+os.replace(tmp, path)
+
+print(servers[key].get('name', key))
+PY
+)
+
+if [ $? -ne 0 ] || [ -z "$SERVER_NAME" ]; then
+    osascript -e "display alert \"Switch Failed\" message \"Could not switch to '$SERVER_KEY'.\" as warning" 2>/dev/null
+    exit 1
+fi
+
+csu_log "🔀 Active server → $SERVER_NAME"
+osascript -e "display notification \"Active server: $SERVER_NAME\" with title \"Server Switched\"" 2>/dev/null
+
+# Let a running auto-upload daemon pick up the new server.
+csu_restart_daemon

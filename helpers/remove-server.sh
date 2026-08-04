@@ -1,85 +1,77 @@
 #!/bin/bash
 
-# Remove a server profile
-CONFIG_FILE="$HOME/.claude-screenshot-uploader/config.json"
+# Remove a server profile, chosen from a list.
 
-# Get list of servers
-SERVERS=$(python3 << 'EOF'
-import json
-config_file = "$HOME/.claude-screenshot-uploader/config.json"
-try:
-    with open(config_file, 'r') as f:
-        config = json.load(f)
-    for key, server in config['servers'].items():
-        print(f"{server.get('name', key)}")
-except:
-    pass
-EOF
-)
+source "$(dirname "$0")/common.sh"
 
-if [ -z "$SERVERS" ]; then
-    osascript -e 'display alert "No Servers" message "No servers configured." as informational'
+CONFIG_ROWS="$(csu_config_dump)"
+if [ -z "$CONFIG_ROWS" ] || printf '%s\n' "$CONFIG_ROWS" | grep -q '^ERROR'; then
+    osascript -e 'display alert "No Servers" message "No servers are configured." as informational' 2>/dev/null
     exit 1
 fi
 
-# Let user choose which server to remove
-SERVER_NAME=$(osascript -e "choose from list {$(echo "$SERVERS" | sed 's/^/"/; s/$/",/' | tr '\n' ' ' | sed 's/, $//')} with prompt \"Select server to remove:\" with title \"Remove Server\"" -e 'result' 2>/dev/null)
+# Build the AppleScript list literal from the configured server names.
+LIST_ITEMS="$(printf '%s\n' "$CONFIG_ROWS" | awk -F'\t' '
+    $1 == "SERVER" {
+        name = $3
+        gsub(/"/, "", name)          # quotes would break the AppleScript literal
+        printf "%s\"%s\"", (n++ ? ", " : ""), name
+    }')"
+
+if [ -z "$LIST_ITEMS" ]; then
+    osascript -e 'display alert "No Servers" message "No servers are configured." as informational' 2>/dev/null
+    exit 1
+fi
+
+SERVER_NAME=$(osascript \
+    -e "choose from list {$LIST_ITEMS} with prompt \"Select server to remove:\" with title \"Remove Server\"" \
+    -e 'result' 2>/dev/null)
 
 if [ -z "$SERVER_NAME" ] || [ "$SERVER_NAME" = "false" ]; then
     echo "Cancelled"
-    exit 1
+    exit 0
 fi
 
-# Confirm deletion
-CONFIRM=$(osascript -e "button returned of (display dialog \"Are you sure you want to remove the server '$SERVER_NAME'?\" buttons {\"Cancel\", \"Remove\"} default button \"Cancel\" with title \"Confirm Removal\" with icon caution)" 2>/dev/null)
+CONFIRM=$(osascript -e "button returned of (display dialog \"Remove the server '$SERVER_NAME'?\" buttons {\"Cancel\", \"Remove\"} default button \"Cancel\" with title \"Confirm Removal\" with icon caution)" 2>/dev/null)
 
 if [ "$CONFIRM" != "Remove" ]; then
     echo "Cancelled"
+    exit 0
+fi
+
+python3 - "$CSU_CONFIG_FILE" "$SERVER_NAME" <<'PY'
+import json, os, sys
+
+path, name = sys.argv[1], sys.argv[2]
+
+with open(path) as handle:
+    config = json.load(handle)
+
+servers = config.get('servers') or {}
+
+key = next((k for k, s in servers.items() if s.get('name', k) == name), None)
+if key is None:
+    sys.stderr.write("Server '%s' not found\n" % name)
+    sys.exit(1)
+
+del servers[key]
+
+# If the removed server was active, fall back to any remaining one.
+if config.get('active') == key:
+    config['active'] = next(iter(servers), '')
+
+tmp = path + '.tmp'
+with open(tmp, 'w') as handle:
+    json.dump(config, handle, indent=2)
+os.replace(tmp, path)
+PY
+
+if [ $? -ne 0 ]; then
+    osascript -e "display alert \"Removal Failed\" message \"Could not remove '$SERVER_NAME'.\" as warning" 2>/dev/null
     exit 1
 fi
 
-# Remove server using Python
-python3 << EOF
-import json
-import sys
+csu_log "🗑️ Removed server $SERVER_NAME"
+osascript -e "display notification \"Server removed: $SERVER_NAME\" with title \"Server Removed\"" 2>/dev/null
 
-config_file = "$CONFIG_FILE"
-server_name = "$SERVER_NAME"
-
-try:
-    with open(config_file, 'r') as f:
-        config = json.load(f)
-    
-    # Find server key by name
-    server_key = None
-    for key, server in config['servers'].items():
-        if server.get('name', key) == server_name:
-            server_key = key
-            break
-    
-    if server_key:
-        del config['servers'][server_key]
-        
-        # If this was the active server, clear active
-        if config.get('active') == server_key:
-            # Set to first remaining server or empty
-            if config['servers']:
-                config['active'] = list(config['servers'].keys())[0]
-            else:
-                config['active'] = ""
-        
-        with open(config_file, 'w') as f:
-            json.dump(config, f, indent=2)
-        
-        print(f"✅ Server '{server_name}' removed")
-        
-        # Show notification
-        import subprocess
-        subprocess.run(['osascript', '-e', f'display notification "Server removed: {server_name}" with title "Server Removed"'])
-    else:
-        print(f"❌ Server '{server_name}' not found")
-        sys.exit(1)
-except Exception as e:
-    print(f"❌ Error: {e}")
-    sys.exit(1)
-EOF
+csu_restart_daemon
