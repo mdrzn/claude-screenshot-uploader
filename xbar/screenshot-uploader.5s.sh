@@ -202,6 +202,42 @@ fi
 
 echo "---"
 
+# ── Upload mode ───────────────────────────────────────────────────────────────
+
+ACTIVE_MODE="$(csu_active_mode)"
+
+case "$ACTIVE_MODE" in
+    manual)     MODE_LABEL="Manual — you click Upload" ;;
+    polling)    MODE_LABEL="Polling — automatic, checks every 2s" ;;
+    watchpaths) MODE_LABEL="WatchPaths — automatic, on folder change" ;;
+    fswatch)    MODE_LABEL="fswatch — automatic, instant" ;;
+    legacy)     MODE_LABEL="Pre-2.0 daemon — re-run setup.sh" ;;
+    *)          MODE_LABEL="$ACTIVE_MODE" ;;
+esac
+
+if [ "$ACTIVE_MODE" = "manual" ]; then
+    echo "⚡ Upload Mode: Manual | color=gray"
+else
+    echo "⚡ Upload Mode: $ACTIVE_MODE | color=green"
+fi
+echo "--$MODE_LABEL | size=11 color=gray"
+echo "-----"
+for MODE_OPTION in manual polling watchpaths fswatch; do
+    case "$MODE_OPTION" in
+        manual)     OPTION_TEXT="Manual — click to upload" ;;
+        polling)    OPTION_TEXT="Polling — every 2 seconds" ;;
+        watchpaths) OPTION_TEXT="WatchPaths — on folder change" ;;
+        fswatch)    OPTION_TEXT="fswatch — instant (needs fswatch)" ;;
+    esac
+    if [ "$MODE_OPTION" = "$ACTIVE_MODE" ]; then
+        echo "--✓ $OPTION_TEXT | shell='$INSTALL_DIR/helpers/set-mode.sh' param1='$MODE_OPTION' terminal=false refresh=true"
+    else
+        echo "--◯ $OPTION_TEXT | shell='$INSTALL_DIR/helpers/set-mode.sh' param1='$MODE_OPTION' terminal=false refresh=true"
+    fi
+done
+
+echo "---"
+
 echo "⚙️ Server Management:"
 echo "--➕ Add New Server... | shell='$INSTALL_DIR/helpers/add-server.sh' terminal=false refresh=true"
 if [ "$SERVER_COUNT" -gt 0 ]; then
@@ -245,4 +281,4 @@ echo "---"
 echo "📖 Documentation | href='$HELP_URL'"
 echo "🔄 Refresh | refresh=true"
 echo "---"
-echo "v$VERSION · manual upload | size=10 color=gray"
+echo "v$VERSION · $ACTIVE_MODE mode | size=10 color=gray"

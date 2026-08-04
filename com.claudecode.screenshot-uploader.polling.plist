@@ -15,8 +15,18 @@
         <string>__INSTALL_DIR__/uploader-polling.sh</string>
     </array>
 
-    <!-- Seconds between checks: lower means less delay, more wakeups. -->
+    <!--
+        Seconds between checks: lower means less delay, more wakeups.
+
+        ThrottleInterval must be set alongside it. launchd refuses to respawn a
+        job more often than every 10 seconds by default, so StartInterval on its
+        own is silently clamped to that floor and a "2" here would really mean
+        up to 10 seconds of delay.
+    -->
     <key>StartInterval</key>
+    <integer>2</integer>
+
+    <key>ThrottleInterval</key>
     <integer>2</integer>
 
     <key>StandardOutPath</key>

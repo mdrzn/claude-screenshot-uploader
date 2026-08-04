@@ -5,6 +5,15 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2026-08-04
+
+### Added
+- **⚡ Upload Mode** in the menu: shows the active mode and switches between manual, polling, WatchPaths and fswatch in one click (`helpers/set-mode.sh`). Switching unloads the previous mode first, and checks that `fswatch` is installed before tearing down a working setup.
+
+### Fixed
+- The polling daemon ran roughly every 10 seconds rather than the configured 2, because `launchd` will not respawn a job more often than `ThrottleInterval` — which defaults to 10 and silently overrode `StartInterval`. Both keys are now set together.
+- The menu footer always read "manual upload" regardless of the mode actually installed, so an active polling daemon was reported as manual. The mode is now derived from which LaunchAgent is loaded.
+
 ## [2.0.0] - 2026-08-04
 
 ### Added
@@ -54,5 +63,6 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - `launchd` background service, plus setup and uninstall scripts.
 - Optional deletion of local screenshots after upload.
 
+[2.0.1]: https://github.com/mdrzn/claude-screenshot-uploader/releases/tag/v2.0.1
 [2.0.0]: https://github.com/mdrzn/claude-screenshot-uploader/releases/tag/v2.0.0
 [1.0.0]: https://github.com/mdrzn/claude-screenshot-uploader/releases/tag/v1.0.0

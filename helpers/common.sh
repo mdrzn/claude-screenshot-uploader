@@ -200,6 +200,25 @@ csu_loaded_labels() {
         index($3, prefix) == 1 { print $3 }'
 }
 
+# Which upload mode is in effect: the suffix of whichever LaunchAgent is loaded,
+# or "manual" when none is — manual mode is precisely the absence of a daemon.
+csu_active_mode() {
+    local label suffix
+    label="$(csu_loaded_labels | head -n 1)"
+
+    if [ -z "$label" ]; then
+        printf 'manual'
+        return 0
+    fi
+
+    suffix="${label#"$CSU_LABEL_PREFIX"}"
+    suffix="${suffix#.}"
+
+    # A bare prefix with no suffix is a pre-2.0 agent, from before each mode got
+    # its own label.
+    printf '%s' "${suffix:-legacy}"
+}
+
 # Ask the running daemon to pick up a config change (a server switch or edit).
 csu_restart_daemon() {
     local label

@@ -4,7 +4,7 @@ Take a screenshot on your Mac, get a path you can paste straight into a remote C
 
 ![Platform](https://img.shields.io/badge/platform-macOS-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Version](https://img.shields.io/badge/version-2.0.0-orange.svg)
+![Version](https://img.shields.io/badge/version-2.0.1-orange.svg)
 
 ## 🤔 Why
 
@@ -69,7 +69,7 @@ The icon shows where uploads are headed at a glance:
 
 ## 🎛️ Upload modes
 
-Set during install, changeable by re-running `./setup.sh`.
+Switch any time from **⚡ Upload Mode** in the menu — it shows which mode is active and swaps it in one click. `setup.sh` also asks during install.
 
 | Mode | How it triggers | Trade-off |
 |:--|:--|:--|
@@ -80,7 +80,9 @@ Set during install, changeable by re-running `./setup.sh`.
 
 Manual mode suits most people: it keeps uploads deliberate and leaves nothing running. Reach for an automatic mode when you're taking screenshots continuously and don't want to click each time.
 
-Only one mode is ever installed — `setup.sh` removes the previous one first, so two daemons can't race to upload the same file.
+Only one mode is ever installed — switching removes the previous one first, so two daemons can't race to upload the same file. Manual mode is simply the absence of a daemon, and the manual **Upload** button stays available in every mode.
+
+The automatic modes upload the *newest* screenshot they find. Two screenshots landing inside the same interval means the older one is skipped, so use manual mode when you need every single capture.
 
 ## 🔧 Configuration
 
