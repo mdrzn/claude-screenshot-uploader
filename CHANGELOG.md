@@ -5,6 +5,16 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-08-04
+
+Version numbering realigned. The 1.x xbar plugin reported `v3.1` at runtime while
+the repository was tagged 1.0.0, so the two never matched. Numbering continues
+from the higher of the pair, which keeps the version the plugin displays moving
+forwards for anyone upgrading from that build.
+
+No functional change from 2.0.1, which was published earlier the same day and is
+superseded by this release.
+
 ## [2.0.1] - 2026-08-04
 
 ### Added
@@ -63,6 +73,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - `launchd` background service, plus setup and uninstall scripts.
 - Optional deletion of local screenshots after upload.
 
+[3.1.0]: https://github.com/mdrzn/claude-screenshot-uploader/releases/tag/v3.1.0
 [2.0.1]: https://github.com/mdrzn/claude-screenshot-uploader/releases/tag/v2.0.1
 [2.0.0]: https://github.com/mdrzn/claude-screenshot-uploader/releases/tag/v2.0.0
 [1.0.0]: https://github.com/mdrzn/claude-screenshot-uploader/releases/tag/v1.0.0

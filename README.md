@@ -4,7 +4,7 @@ Take a screenshot on your Mac, get a path you can paste straight into a remote C
 
 ![Platform](https://img.shields.io/badge/platform-macOS-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Version](https://img.shields.io/badge/version-2.0.1-orange.svg)
+![Version](https://img.shields.io/badge/version-3.1.0-orange.svg)
 
 ## 🤔 Why
 
