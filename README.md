@@ -6,6 +6,8 @@ Take a screenshot on your Mac, get a path you can paste straight into a remote C
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Version](https://img.shields.io/badge/version-3.1.0-orange.svg)
 
+> 🪟 **On Windows?** This is the macOS build, which lives in the menu bar via [xbar](https://xbarapp.com). The Windows equivalent is at [**mdrzn/windows-screenshot-uploader**](https://github.com/mdrzn/windows-screenshot-uploader).
+
 ## 🤔 Why
 
 When Claude Code runs on a remote server over SSH, it can read files on *that* server — not the image sitting on your Mac's desktop. Pasting a screenshot into the terminal does nothing useful, so you end up repeating the same four steps by hand: save the image, `scp` it up, work out where it landed, type the path.
@@ -36,7 +38,7 @@ Claude: [reads the image]
 
 ## 📋 Requirements
 
-- macOS
+- macOS — on Windows, use [windows-screenshot-uploader](https://github.com/mdrzn/windows-screenshot-uploader) instead
 - [xbar](https://xbarapp.com) — provides the menu bar icon
 - A server you can reach over SSH with key authentication
 - `python3` and `rsync` — `rsync` ships with macOS, `python3` comes with the Xcode command line tools (`xcode-select --install`)
