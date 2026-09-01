@@ -14,6 +14,8 @@ When Claude Code runs on a remote server over SSH, it can read files on *that* s
 
 This collapses that into one step. Your screenshot ends up on the server and its remote path ends up on your clipboard, so the only thing left to do is paste.
 
+<img width="220" height="441" alt="image" src="https://github.com/user-attachments/assets/e83fb141-14e4-4332-b2db-36ae15402aa2" />
+
 ```
 You: have a look at this — /tmp/screenshots/SCR-20260804-kurv.png
 Claude: [reads the image]
