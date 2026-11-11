@@ -39,3 +39,7 @@ Screenshot*.png
 
 # Test files
 test_*
+# Native app build output
+app/Screenshot Uploader.app/
+app/ScreenshotUploader.zip
+app/build/

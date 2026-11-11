@@ -4,9 +4,11 @@ Take a screenshot on your Mac, get a path you can paste straight into a remote C
 
 ![Platform](https://img.shields.io/badge/platform-macOS-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Version](https://img.shields.io/badge/version-3.1.0-orange.svg)
+![Version](https://img.shields.io/badge/version-4.0.0-orange.svg)
 
-> 🪟 **On Windows?** This is the macOS build, which lives in the menu bar via [xbar](https://xbarapp.com). The Windows equivalent is at [**mdrzn/windows-screenshot-uploader**](https://github.com/mdrzn/windows-screenshot-uploader).
+> 🪟 **On Windows?** The Windows equivalent is at [**mdrzn/windows-screenshot-uploader**](https://github.com/mdrzn/windows-screenshot-uploader).
+
+> 🆕 **Version 4 is a native Mac app** — no xbar, no polling, no shell scripts to keep running. See [Native app (v4)](#-native-app-v4) below. The original shell + xbar version still works and is documented further down as *legacy*.
 
 ## 🤔 Why
 
@@ -20,6 +22,38 @@ This collapses that into one step. Your screenshot ends up on the server and its
 You: have a look at this — /tmp/screenshots/SCR-20260804-kurv.png
 Claude: [reads the image]
 ```
+
+## 🆕 Native app (v4)
+
+A small native menu bar app (Swift, ~0% CPU when idle) that replaces the shell scripts and xbar.
+
+- ⚡ **Instant uploads** — it's told by macOS the moment a screenshot is saved: no polling, no delay.
+- 📋 **Clipboard images too** — copied a screenshot instead of saving it (e.g. Shottr, ⌃⇧⌘4)? Press **⌥⌘U**, or turn on automatic upload of copied images.
+- 🗂️ **Any file** — drop files on the menu bar icon, or pick them from the menu.
+- 🕘 **Recent uploads** — the last uploads with thumbnails in the menu; click one to copy its path again.
+- 🖥️ **Servers** — add, edit and **test** SSH connections from a settings window; switch from the menu.
+- 🔒 **Same model as before** — `rsync` over SSH with your keys, nothing stored; creates the remote folder if it's missing.
+- 🔁 **Drop-in** — reads the same `~/.claude-screenshot-uploader/config.json`, and offers to turn off the previous version (its LaunchAgent and xbar plugin are moved to a backup folder, not deleted).
+- 🇮🇹 English and Italian.
+
+### Install
+
+```sh
+brew tap mdrzn/tap && brew trust mdrzn/tap
+brew install --cask --no-quarantine mdrzn/tap/screenshot-uploader
+```
+
+Or download `ScreenshotUploader.zip` from the [latest release](https://github.com/mdrzn/claude-screenshot-uploader/releases/latest), move **Screenshot Uploader.app** to Applications and open it. The app isn't notarized, so the first time macOS blocks it: open **System Settings → Privacy & Security** and click **Open Anyway** (or run `xattr -dr com.apple.quarantine "/Applications/Screenshot Uploader.app"`).
+
+Or build it yourself (Xcode Command Line Tools only): `cd app && ./build.sh`.
+
+From a script or another tool: `"/Applications/Screenshot Uploader.app/Contents/MacOS/ScreenshotUploader" --upload file.png` uploads a file and prints the remote path.
+
+---
+
+## 🧰 Legacy version (v3: shell + xbar)
+
+Everything below describes the original version, which keeps working for existing installs.
 
 ## ⚙️ How it works
 
