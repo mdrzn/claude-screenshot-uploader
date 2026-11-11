@@ -110,7 +110,7 @@ A host's key is trusted on first contact and pinned after that, so if it later c
 
 Version 4 reads the same `config.json`, so your servers carry over. On first launch it offers to turn off the old version: its LaunchAgent and xbar plugin are moved to `~/.claude-screenshot-uploader/legacy-backup` (not deleted), and you can uninstall xbar if you don't use it for anything else.
 
-The shell scripts stay in this repository so existing v3 installs keep working; their documentation is in the [v3.1.0 README](https://github.com/mdrzn/claude-screenshot-uploader/blob/v3.1.0/README.md).
+The shell version now lives in [`legacy/`](legacy) for reference, and ready to use on the [`v3-shell`](https://github.com/mdrzn/claude-screenshot-uploader/tree/v3-shell) branch and the [v3.1.0](https://github.com/mdrzn/claude-screenshot-uploader/releases/tag/v3.1.0) release. If you run *Update* from the old menu, it now shows a notice pointing to the native app.
 
 ## 📄 License
 

@@ -5,6 +5,19 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.1] - 2026-11-11
+
+### Changed
+- Files are uploaded with a terminal-safe name: spaces and the narrow no-break space (U+202F) in macOS's default screenshot names become `-`, so the copied path pastes cleanly. Reported in #1 by @phillipcheng.
+- The v3 shell scripts, LaunchAgents and xbar plugin moved to `legacy/` (and the `v3-shell` branch). A small xbar plugin stays at `xbar/` so v3 installs that run *Update* get a notice instead of a broken menu.
+
+## [4.0.0] - 2026-11-11
+
+### Added
+- Native Mac menu bar app (Swift) replacing the shell scripts and xbar: instant uploads via file-system events, clipboard images (⌥⌘U, optional automatic upload), drag and drop, recent uploads, settings window with a connection test, English and Italian.
+- Reads the existing `config.json` and offers to turn off the v3 LaunchAgent and xbar plugin.
+- Remote folder is created when missing.
+
 ## [3.1.0] - 2026-08-04
 
 Version numbering realigned. The 1.x xbar plugin reported `v3.1` at runtime while
