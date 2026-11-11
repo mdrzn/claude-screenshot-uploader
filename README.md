@@ -4,7 +4,7 @@ Take a screenshot on your Mac, get a path you can paste straight into a remote C
 
 ![Platform](https://img.shields.io/badge/platform-macOS_14+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Version](https://img.shields.io/badge/version-4.0.0-orange.svg)
+![Version](https://img.shields.io/badge/version-4.0.1-orange.svg)
 
 > 🪟 **On Windows?** The Windows equivalent is at [**mdrzn/windows-screenshot-uploader**](https://github.com/mdrzn/windows-screenshot-uploader).
 

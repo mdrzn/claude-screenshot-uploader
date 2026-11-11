@@ -201,7 +201,7 @@ final class Uploader: ObservableObject {
             notify(L("Upload failed"), L("Add a server in Settings first."))
             return
         }
-        let name = url.lastPathComponent
+        let name = remoteName(url.lastPathComponent)
         DispatchQueue.main.async { self.busy = name }
         let remoteDir = s.path.hasSuffix("/") ? String(s.path.dropLast()) : s.path
         let p = Process()
@@ -209,7 +209,7 @@ final class Uploader: ObservableObject {
         // crea la cartella remota se manca; ssh con sole chiavi (BatchMode), host nuovo accettato e poi fissato
         p.arguments = ["-a", "--rsync-path=mkdir -p '\(remoteDir)' && rsync",
                        "-e", "ssh -o BatchMode=yes -o ConnectTimeout=8 -o StrictHostKeyChecking=accept-new",
-                       url.path, "\(s.user)@\(s.host):\(remoteDir)/"]
+                       url.path, "\(s.user)@\(s.host):\(remoteDir)/\(name)"]
         let err = Pipe()
         p.standardError = err
         p.standardOutput = FileHandle.nullDevice
@@ -236,6 +236,20 @@ final class Uploader: ObservableObject {
                 self.notify(L("Upload failed"), L("Could not upload to %@: %@", s.name, short))
             }
         }
+    }
+
+    // Nome sul server: niente spazi ne' caratteri speciali, cosi' il percorso si incolla nel terminale
+    // senza virgolette. I nomi predefiniti di macOS contengono spazi e uno spazio stretto U+202F
+    // ("Screenshot 2026-11-11 at 4.33.00\u{202F}PM.png"). Idea dalla PR #1 di phillipcheng.
+    func remoteName(_ name: String) -> String {
+        var out = ""
+        for ch in name {
+            if ch.isLetter && ch.isASCII || ch.isNumber && ch.isASCII || ch == "." || ch == "_" || ch == "-" { out.append(ch) }
+            else if !out.hasSuffix("-") { out.append("-") }
+        }
+        while out.contains("-.") { out = out.replacingOccurrences(of: "-.", with: ".") }
+        out = out.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+        return out.isEmpty ? "screenshot-\(Int(Date().timeIntervalSince1970)).png" : out
     }
 
     func copy(_ u: Upload) {
