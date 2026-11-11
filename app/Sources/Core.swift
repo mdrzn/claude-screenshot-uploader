@@ -15,6 +15,7 @@ struct Server: Codable, Identifiable, Equatable {
 
 final class Store: ObservableObject {
     static let shared = Store()
+    static var demo = false               // screenshot del README: non legge ne' scrive il config vero
     static let dir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude-screenshot-uploader")
     static let configURL = dir.appendingPathComponent("config.json")
 
@@ -28,7 +29,7 @@ final class Store: ObservableObject {
 
     var activeServer: Server? { servers.first { $0.id == active } ?? servers.first }
 
-    init() { load() }
+    init() { if !Store.demo { load() } }
 
     func load() {
         let defaultDir = UserDefaults(suiteName: "com.apple.screencapture")?.string(forKey: "location")
@@ -49,6 +50,7 @@ final class Store: ObservableObject {
 
     // Scrive il config nello stesso formato della versione shell (cosi' restano compatibili)
     func save() {
+        guard !Store.demo else { return }
         let d = UserDefaults.standard
         d.set(autoUpload, forKey: "autoUpload"); d.set(autoClipboard, forKey: "autoClipboard"); d.set(hotkey, forKey: "hotkey")
         var existing = (try? JSONSerialization.jsonObject(with: Data(contentsOf: Self.configURL))) as? [String: Any] ?? [:]
@@ -92,7 +94,7 @@ final class Uploader: ObservableObject {
     let imageExtensions: Set<String> = ["png", "jpg", "jpeg", "heic", "gif", "webp", "tiff", "pdf", "mov", "mp4"]
 
     init() {
-        if let d = try? Data(contentsOf: historyURL), let h = try? JSONDecoder().decode([Upload].self, from: d) { history = h }
+        if !Store.demo, let d = try? Data(contentsOf: historyURL), let h = try? JSONDecoder().decode([Upload].self, from: d) { history = h }
     }
 
     // ------------------------------------------------------------ sorveglianza della cartella
@@ -243,6 +245,7 @@ final class Uploader: ObservableObject {
     }
 
     private func saveHistory() {
+        guard !Store.demo else { return }
         if let d = try? JSONEncoder().encode(history) { try? d.write(to: historyURL, options: .atomic) }
     }
 

@@ -95,7 +95,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
                     img.size = NSSize(width: 28, height: 28 * img.size.height / max(img.size.width, 1))
                     it.image = img
                 }
-                let f = RelativeDateTimeFormatter(); f.unitsStyle = .short
+                let f = RelativeDateTimeFormatter(); f.unitsStyle = .short; f.locale = Locale(identifier: italian ? "it_IT" : "en_US")
                 it.attributedTitle = NSAttributedString(string: "\((u.remote as NSString).lastPathComponent)  ",
                     attributes: [.font: NSFont.menuFont(ofSize: 0)])
                     + NSAttributedString(string: f.localizedString(for: u.date, relativeTo: Date()),
@@ -228,6 +228,10 @@ if let i = CommandLine.arguments.firstIndex(of: "--upload"), i + 1 < CommandLine
     while !done { RunLoop.main.run(until: Date().addingTimeInterval(0.1)) }
     _ = (c, e)
     exit(0)
+}
+if let i = CommandLine.arguments.firstIndex(of: "--screenshots"), i + 1 < CommandLine.arguments.count {
+    NSApp.setActivationPolicy(.accessory)
+    DemoShots.run(URL(fileURLWithPath: CommandLine.arguments[i + 1])); exit(0)
 }
 if let i = CommandLine.arguments.firstIndex(of: "--icon"), i + 1 < CommandLine.arguments.count {
     IconRenderer.run(URL(fileURLWithPath: CommandLine.arguments[i + 1])); exit(0)

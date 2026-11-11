@@ -1,7 +1,12 @@
 // Testi: inglese nel codice, italiano se la lingua di sistema e' l'italiano.
 import Foundation
 
-let italian = (Locale.preferredLanguages.first ?? "en").hasPrefix("it")
+// --lang en|it forza la lingua (es. per gli screenshot del README)
+let italian: Bool = {
+    let a = CommandLine.arguments
+    if let i = a.firstIndex(of: "--lang"), i + 1 < a.count { return a[i + 1] == "it" }
+    return (Locale.preferredLanguages.first ?? "en").hasPrefix("it")
+}()
 
 func L(_ s: String) -> String { italian ? (it[s] ?? s) : s }
 func L(_ s: String, _ args: CVarArg...) -> String { String(format: L(s), arguments: args) }
