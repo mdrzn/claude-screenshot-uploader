@@ -1,0 +1,3 @@
+# The v3 shell scripts in legacy/ are kept for reference: exclude them from the language stats
+legacy/** linguist-vendored
+xbar/** linguist-vendored
